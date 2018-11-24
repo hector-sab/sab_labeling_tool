@@ -5,10 +5,10 @@ GUI used for facilitating the labiling of images with python
 
 ## How it works
 
-There's two main classes in sab_labeling_tool: ```SABLabelingTool``` and ```SABLabelingToolMainGUI```.
+There's two main classes in ```sab_labeling_tool```: ```SABLabelingTool``` and ```SABLabelingToolMainGUI```.
 
-- SABLabelingToolMainGUI: Contains the main functionality. Is to this class that you are going to provide single paths for your image and label
-- SABLabelingTool: In case you have multiple images, use this class to be able to use the "Next" and "Prev" buttons.
+- ```SABLabelingToolMainGUI```: Contains the main functionality. Is to this class that you are going to provide single paths for your image and label.
+- ```SABLabelingTool```: In case you have multiple images, use this class to be able to use the "Next" and "Prev" buttons.
 
 File labels that are accepted right now are just the txt (KITTI) ones.
 
@@ -20,7 +20,6 @@ When you provide both, image and label path.
 main = SABLabelingToolMainGUI()
 
 # Indicates paths to be used
-
 im_path = 'dog.jpg'
 lbs_path = 'tst_lbl001.txt'
 
@@ -32,6 +31,8 @@ main.run()
 **Note 1:** As of today, if ```lbs_path``` does not exists, you only will see a warning that the file does not exists and it will use that path as the path to save the label.
 
 **Note 2:** ```lbs_path``` can be ```None```.
+
+----
 
 When you only provide image path and the expected path for the output label.
 
