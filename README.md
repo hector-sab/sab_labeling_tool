@@ -82,3 +82,7 @@ Note that ```im_paths``` and ```lb_paths``` must match in size.
 - Remove dependency of ```OBJECT_LABELS```.
 - Allow more label files formats.
 - Add a method that allows personalized funtions to load label files.
+- Fix scrollbar in the labeling frame.
+- Allow drawing rectangles in the image frame.
+- Implement the add button to save the rectangles drew.
+- Implement the modify/rename label button.
