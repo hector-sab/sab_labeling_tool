@@ -1,6 +1,6 @@
 # Sab Labeling Tool
 
-GUI used for facilitating the labiling of images with python
+GUI used for facilitating the labiling of images in python.
 
 
 ## How it works
@@ -73,11 +73,12 @@ Note that ```im_paths``` and ```lb_paths``` must match in size.
 
 ## Things that can be done
 
-If you click the bbox in the image, it will be selected in the bboxes.
+- If you click the bbox in the image, it will be selected in the bboxes.
+- Remove bounding boxes.
 
 ## Thing that cannot be done or need to be implemented
 
-- Allow to change the bbox size from the image
-- Remove dependency of ```OBJECT_LABELS```
+- Allow to change the bbox size from the image.
+- Remove dependency of ```OBJECT_LABELS```.
 - Allow more label files formats.
 - Add a method that allows personalized funtions to load label files.
