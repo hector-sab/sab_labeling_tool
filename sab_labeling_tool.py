@@ -82,8 +82,7 @@ class ImageFrame:
 		im = np.zeros(self.shape)
 
 		# Converst the image to a format that tkinter can handle
-		self.orig_im_data = ImageTk.PhotoImage(image=Image.fromarray(im)) # Original
-		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im)) # To be edited
+		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im))
 
 		# Initialize the image in the canvas
 		self.image = self.canvas.create_image(self.shape[1]//2,self.shape[0]//2,
@@ -120,15 +119,9 @@ class ImageFrame:
 
 	def __set_new_image_on_canvas(self,im):
 		# Converst the image to a format that tkinter can handle
-		self.orig_im_data = ImageTk.PhotoImage(image=Image.fromarray(im)) # Original
-		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im)) # To be edited
+		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im))
 		# Initialize the image in the canvas
 		self.canvas.itemconfig(self.image,image=self.im_data)
-		#self.image = self.canvas.create_image(self.shape[1]//2,self.shape[0]//2,
-		#	image=self.im_data)
-
-	def __reset_image_on_canvas(self):
-		self.canvas.itemconfig(self.image,image=self.orig_im_data)
 
 	def __reset_current_bboxes(self):
 		self.current_bboxes = []
@@ -211,9 +204,6 @@ class ImageFrame:
 			return(True)
 		else:
 			return(False)
-
-
-
 
 	def _on_closing(self):
 		self.closed_window = True
@@ -334,6 +324,10 @@ class LabelsFrame:
 		for bbox in self.bboxes:
 			self.listbox.insert(tk.END,bbox[-1])
 
+	def reset_lbs(self):
+		self.bboxes = []
+		self.__refresh_lbs()
+
 	def __load_bboxes_from_txt(self,path,ob_lbs,orig_shape=None,new_shape=None):
 		# Returns the objects found in each file as a list of lists with the form
 		# [[x_left,y_top,x_right,y_bottom,class]]
@@ -433,6 +427,7 @@ class SABLabelingToolMainGUI:
 		self.set_load_next_prev_im_to_false()
 		self.imFrame.change_image(im_path)
 		if lbs_path is not None:
+			self.lbsFrame.reset_lbs()
 			self.lbs_path = lbs_path
 			if os.path.exists(lbs_path):
 				self.lbsFrame.load_lbs(lbs_path)
