@@ -524,18 +524,19 @@ class SABLabelingTool:
 			self.main.run()
 			
 			if self.main.load_next_im:
-				print('Loading next image!')
 				i += 1
+				print('Loading next image! {}/{}'.format(i,len(im_paths)))
 				if i>len(im_paths)-1:
 					i = len(im_paths)-1
 					print('End of ims reached.')
 			if self.main.load_prev_im:
-				print('Loading previous image!')
 				i -= 1;
+				print('Loading previous image! {}/{}'.format(i,len(im_paths)))
 				if i<0:
 					i = 0
 					print('Begining of ims reached.')
 
 			if self.main.closed_windows:
 				print('Bye!')
+				self.main.root.destroy()
 				break
