@@ -7,30 +7,9 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 
-OBJECT_LABELS = {
-	  'aeroplane':(0,'Vehicle'),
-	  'bicycle':(1,'Vehicle'),
-	  'bird':(2,'Animal'),
-	  'boat':(3,'Vehicle'),
-	  'bottle':(4,'Indoor'),
-	  'bus':(5,'Vehicle'),
-	  'car':(6,'Vehicle'),
-	  'cat':(7,'Animal'),
-	  'chair':(8,'Indoor'),
-	  'cow':(9,'Animal'),
-	  'diningtable':(10,'Indoor'),
-	  'dog':(11,'Animal'),
-	  'horse':(12,'Animal'),
-	  'motorbike':(13,'Vehicle'),
-	  'person':(14,'Person'),
-	  'pottedplant':(15,'Indoor'),
-	  'sheep':(16,'Animal'),
-	  'sofa':(17,'Indoor'),
-	  'train':(18,'Vehicle'),
-	  'tvmonitor':(19,'Indoor')}
 
-
-# TODO: Allow modification to the bboxes on the canvas via click events
+# TODO: Allow changing the class when clicking the label.
+# Todo: Allow preset of labels from where to choose the default.
 # TODO: Issue with the storing the corners of the unregistered corner
 #       As of right now, you have to draw the rectangle from top-left to bottom-right
 #       to get it done without issues.
@@ -48,7 +27,6 @@ class Point:
 		# coord: [x,y,x,y]
 		self.selected = True
 		coord = self.canvas.coords(self.draw)
-		print('Point:',coord[0],coord[1])
 
 	def get_coord(self):
 		coord = self.canvas.coords(self.draw)
@@ -67,7 +45,8 @@ class Point:
 		self.canvas.delete(self.draw)
 
 class Rectangle:
-	def __init__(self,canvas,bbox,element):
+	def __init__(self,canvas,bbox,element,clss='New Object'):
+		self.clss = clss
 		self.element = None # Which number of element in canvas
 		self.selected = False
 		self.canvas = canvas
@@ -133,6 +112,9 @@ class Rectangle:
 			corner = self.corners[key]
 			corner.set_setected_off()
 
+	def change_class(self,new_class):
+		self.clss = new_class
+
 	def destroy(self):
 		# Destroy the rectangle from the canvas
 		for key in self.corners:
@@ -163,6 +145,9 @@ class ImageFrame:
 
 		# Store the bboxes currently drawn
 		self.bboxes = [] # Rectangles
+
+		# Flag indicating the coord of the bboxes have changed
+		self.bboxes_changed = False
 
 		# Stores the selected bboxes on the image
 		self.selected_bboxes = []
@@ -288,6 +273,8 @@ class ImageFrame:
 
 	def __canvas_unpressed(self,event):
 		self.__deselect_corners()
+		if self.bbox_corner_selected:
+			self.bboxes_changed = True
 		self.bbox_corner_selected = False
 		self.unregistered_bbox_corner_selected = False
 		if self.unregistered_bbox_start==[event.x,event.y]:
@@ -333,11 +320,12 @@ class ImageFrame:
 		# bboxes (list): [[x_min,y_min,x_max,y_max,label]]
 		self.__remove_bboxes_on_canvas()
 		for i,bbox in enumerate(bboxes):
-			obj = Rectangle(self.canvas,bbox,i)
+			obj = Rectangle(self.canvas,bbox[:4],i,clss=bbox[4])
 			self.bboxes.append(obj)
 
 	def destroy_unregistered_bbox(self):
-		self.unregistered_bbox.destroy()
+		if self.unregistered_bbox is not None:
+			self.unregistered_bbox.destroy()
 		self.unregistered_bbox = None
 		self.unregistered_bbox_start = None
 		self.unregistered_bbox_location = None
@@ -365,6 +353,17 @@ class ImageFrame:
 				if location is not None:
 					self.unregistered_bbox_corner_selected = True
 					self.unregistered_bbox_location = location
+
+	def set_bboxes_changed_to_false(self):
+		#
+		self.bboxes_changed = False
+
+	def get_bboxes(self):
+		bboxes = []
+		for bbox in self.bboxes:
+			bboxes.append(bbox.get_coord()+[bbox.clss])
+
+		return(bboxes)
 
 	def _on_closing(self):
 		self.closed_window = True
@@ -427,7 +426,8 @@ def bboxes_saver_txt_kitti(path,bboxes,args=None):
 					f.write('\n')
 
 class LabelsFrame:
-	def __init__(self,root,main=False,lb_loader=None,lb_saver=None,name='Labels'):
+	def __init__(self,root,main=False,lb_loader=None,lb_saver=None,
+		def_class=None,name='Labels'):
 		# Defines the root
 		self.root = root
 
@@ -453,6 +453,12 @@ class LabelsFrame:
 			self.lb_saver = bboxes_saver_txt_kitti
 		else:
 			self.lb_saver = lb_saver
+
+		# Default class for new objects
+		if def_class is None:
+			self.def_class = 'new_object'
+		else:
+			self.def_class = def_class
 
 		# Indicates that the unregistered bbox should be added
 		self.add_lb = False
@@ -505,6 +511,7 @@ class LabelsFrame:
 		self.btn_prev.grid(row=6,column=3)
 
 	def __add_lbl(self):
+		# 
 		self.add_lb = True
 
 	def __remove_lbl(self):
@@ -558,8 +565,19 @@ class LabelsFrame:
 		else:
 			lb_loader = lb_loader
 
-		self.listbox.delete(0,tk.END)
+		self.change_bboxes(lb_loader(path,args))
+		"""
 		self.bboxes = lb_loader(path,args)
+		self.listbox.delete(0,tk.END)
+
+		# Insert labels in list
+		for bbox in self.bboxes:
+			self.listbox.insert(tk.END,bbox[-1])
+		"""
+
+	def change_bboxes(self,bboxes):
+		self.bboxes = bboxes
+		self.listbox.delete(0,tk.END)
 
 		# Insert labels in list
 		for bbox in self.bboxes:
@@ -586,7 +604,7 @@ class LabelsFrame:
 
 		lb_saver(path,self.bboxes,args)
 
-	def set_bboxes_changed_off(self):
+	def set_bboxes_changed_to_false(self):
 		# 
 		self.bboxes_changed = False
 
@@ -627,7 +645,7 @@ class SABLabelingToolMainGUI:
 
 	def __content(self):
 		self.imFrame = ImageFrame(self.root,main=True)
-		self.lbsFrame = LabelsFrame(self.root)
+		self.lbsFrame = LabelsFrame(self.root,def_class='person')
 
 	def load_data(self,im_path,lb_path=None):
 		# Loads the image and label file.
@@ -638,7 +656,7 @@ class SABLabelingToolMainGUI:
 		# Args:
 		#     im_path (str): Path of the image to be loaded
 		#     lbs_path (str): Path of the labels file
-
+		self.imFrame.destroy_unregistered_bbox()
 		self.imFrame.change_image(path=im_path)
 		if lb_path is not None:
 			self.lbsFrame.reset_lbs()
@@ -682,15 +700,29 @@ class SABLabelingToolMainGUI:
 
 			# Check if the bboxes have changed in the lbsFrame
 			if self.lbsFrame.bboxes_changed:
-				self.lbsFrame.set_bboxes_changed_off()
+				self.lbsFrame.set_bboxes_changed_to_false()
 				self.imFrame.draw_bboxes(self.lbsFrame.bboxes)
+
+			# Check if the bboxes in imFrame  have changed
+			if self.imFrame.bboxes_changed:
+				self.imFrame.set_bboxes_changed_to_false()
+				bboxes = self.imFrame.get_bboxes()
+				self.lbsFrame.change_bboxes(bboxes)
+				print(self.lbsFrame.bboxes)
+			"""
+			for i,bbox in enumerate(self.lbsFrame.bboxes):
+				self.lbsFrame.bboxes[i][0] = bbox[0]
+				self.lbsFrame.bboxes[i][1] = bbox[1]
+				self.lbsFrame.bboxes[i][2] = bbox[2]
+				self.lbsFrame.bboxes[i][3] = bbox[3]
+			"""
 
 			# Add label to lbsFrame
 			if self.lbsFrame.add_lb:
 				self.lbsFrame.set_add_lb_to_false()
 				if self.imFrame.unregistered_bbox is not None:
 					coord = self.imFrame.unregistered_bbox.get_coord()
-					coord += ['person']
+					coord += [self.lbsFrame.def_class]
 					self.lbsFrame.append_lb(coord)
 					self.imFrame.destroy_unregistered_bbox()
 
