@@ -1,13 +1,14 @@
 from sab_labeling_tool import SABLabelingTool
 from sab_labeling_tool import SABLabelingToolMainGUI
+from sab_labeling_tool import SABLabelingToolMainGUI2
 
 if __name__=='__main__':
-	if False:
+	if True:
 		# For one image
-		main = SABLabelingToolMainGUI()
+		main = SABLabelingToolMainGUI2()
 		im_path = 'dog.jpg'
-		lbs_path = 'tst_lbl001.txt'
-		main.load_image_label(im_path,lbs_path)
+		lbs_path = 'tst_lbl001_cp.txt'
+		main.load_data(im_path,lbs_path)
 
 		main.run()
 	else:
@@ -16,7 +17,7 @@ if __name__=='__main__':
 
 		im1_path = 'dog.jpg'
 		im2_path = 'cat.jpg'
-		lbs_path = 'tst_lbl001.txt'
+		lbs_path = 'tst_lbl001_cp.txt'
 
 		im_paths = [im1_path,im2_path,im1_path,im2_path]
 		lb_paths = [lbs_path,lbs_path,lbs_path,lbs_path]

@@ -32,6 +32,274 @@ OBJECT_LABELS = {
 
 # TODO: Allow modification to the bboxes on the canvas via click events
 
+class Point:
+	def __init__(self,canvas,coord):
+		# coord (tuple): (x,y)
+		self.selected = False
+		self.canvas = canvas
+		self.draw = self.canvas.create_oval(coord[0],coord[1],coord[0],coord[1],
+			width=6,fill='white')
+		self.canvas.tag_bind(self.draw,'<Button-1>',self.__set_selected)
+
+	def __set_selected(self,event):
+		# coord: [x,y,x,y]
+		self.selected = True
+		coord = self.canvas.coords(self.draw)
+		print('Point:',coord[0],coord[1])
+
+	def get_coord(self):
+		coord = self.canvas.coords(self.draw)
+		return([coord[0],(coord[1])])
+
+	def set_setected_off(self):
+		# 
+		self.selected = False
+
+	def change_coord(self,coord):
+		# Defines new location of the point
+		self.canvas.coords(self.draw,coord[0],coord[1],coord[0],coord[1])
+
+	def destroy(self):
+		# Destroy the rectangle from the canvas
+		self.canvas.delete(self.draw)
+
+
+
+class Rectangle:
+	def __init__(self,canvas,bbox,element):
+		self.element = None # Which number of element in canvas
+		self.selected = False
+		self.canvas = canvas
+		self.draw = self.canvas.create_rectangle(bbox[0],bbox[1],bbox[2],bbox[3],
+			width=3,outline='red')
+		self.corners = self.__draw_corners(bbox)
+		self.canvas.tag_bind(self.draw,'<ButtonRelease-1>',self.__set_selected)
+
+	def __draw_corners(self,bbox):
+		# Draw the corners of a bbox
+		points = [(bbox[0],bbox[1]), # top_left (x,y)
+				  (bbox[2],bbox[1]), # top_right (x,y)
+				  (bbox[0],bbox[3]), # bottom_left (x,y)
+				  (bbox[2],bbox[3])] # bottom_right (x,y)
+		corners = {}
+		for pt,name in zip(points,['tleft','tright','bleft','bright']):
+			corner = Point(self.canvas,pt)
+			corners[name] = corner
+		return(corners)
+
+	def __change_corners_coord(self,bbox):
+		# Draw the corners of a bbox
+		points = [(bbox[0],bbox[1]), # top_left (x,y)
+				  (bbox[2],bbox[1]), # top_right (x,y)
+				  (bbox[0],bbox[3]), # bottom_left (x,y)
+				  (bbox[2],bbox[3])] # bottom_right (x,y)
+
+		for pt,name in zip(points,['tleft','tright','bleft','bright']):
+			self.corners[name].change_coord(pt)
+
+
+	def __set_selected(self,event):
+		# Indicates that this rectangle has been selected
+		self.selected = True
+		print('Rectangle:',event.x,event.y)
+
+	def set_setected_off(self):
+		# 
+		self.selected = False
+
+	def change_coord(self,bbox):
+		# Defines new location of bbox
+		self.canvas.coords(self.draw,bbox[0],bbox[1],bbox[2],bbox[3])
+		self.__change_corners_coord(bbox)
+
+	def get_coord(self):
+		# coords: [x_min,y_min,x_max,y_max]
+		coord = self.canvas.coords(self.draw)
+		return(coord)
+
+	def check_corner_selection(self):
+		coord = None
+		for key in self.corners:
+			corner = self.corners[key]
+			if corner.selected:
+				coord = corner.get_coord()
+				break
+		if coord is None:
+			key = None
+		
+		return([key,coord])
+
+	def deselect_corners(self):
+		for key in self.corners:
+			corner = self.corners[key]
+			corner.set_setected_off()
+
+	def destroy(self):
+		# Destroy the rectangle from the canvas
+		self.canvas.delete(self.draw)
+
+
+
+
+class ImageFrame2:
+	# Contains the GUI correspondig to the image and bboxes vizualization
+	def __init__(self,root,shape=(480,640),main=False,name='Image'):
+		# Define root
+		self.root = root
+
+		# Indicates if this is the main window or not
+		if main: self.window = self.root
+		else: self.window = tk.Toplevel(self.root)
+
+		self.window.bind('<B1-Motion>',self.__canvas_pressed)
+		self.window.bind('<ButtonRelease-1>',self.__canvas_unpressed)
+
+		# Set the window name
+		self.window.title(name)
+
+		# Canch the close event and handle it our way
+		self.window.protocol("WM_DELETE_WINDOW",self._on_closing)
+		self.closed_window = False
+
+		# Store the bboxes currently drawn
+		self.bboxes = [] # Rectangles
+
+		# Stores the selected bboxes on the image
+		self.selected_bboxes = []
+
+		# Flag for selected corner
+		self.bbox_corner_selected = False # 
+		self.bbox_corner_location = None # 'tleft','bleft','tright','bright'
+		self.bbox_corner_ind = None # bbox where the selected corner is
+
+		
+		
+		# Sets the canvas/image shape
+		self.shape = shape
+
+		# Creates the GUI
+		self.__content()
+
+		# Fix window size
+		self.window.resizable(width=False, height=False)
+
+	def __content(self):
+		# Creates all the content of the image frame
+
+		# Creates the main canvas
+		self.canvas = tk.Canvas(self.window,width=self.shape[1],height=self.shape[0],
+			bg='black')
+
+		# Position the canvas 
+		self.canvas.grid(row=0,column=0)
+
+		# Creates a black image. Not actually needed at this point due to
+		# bg='black' parameter at self.canvas.
+		im = np.zeros(self.shape)
+
+		# Converst the image to a format that tkinter can handle
+		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im))
+
+		# Initialize the image in the canvas
+		self.image = self.canvas.create_image(self.shape[1]//2,self.shape[0]//2,
+			image=self.im_data)
+
+	def __condition_image(self,im):
+		# Uses a previously loaded image with cv2
+		im = im[...,::-1]
+		im = im.astype(np.uint8)
+		return(im)
+
+	def __load_image(self,path):
+		# Loads the images 
+		im = cv2.imread(path)
+		im = self.__condition_image(im)
+		return(im)
+
+	def __set_new_image_on_canvas(self,im):
+		# Converst the image to a format that tkinter can handle
+		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im))
+		# Initialize the image in the canvas
+		self.canvas.itemconfig(self.image,image=self.im_data)
+
+	def __remove_bboxes_on_canvas(self):
+		# Removes all the bboces created on the canvas
+		for bbox in self.bboxes:
+			bbox.destroy()
+		self.bboxes = []
+
+	def __canvas_pressed(self,event):
+		if self.bbox_corner_selected:
+			obj = self.bboxes[self.bbox_corner_ind]
+			coord = obj.get_coord()
+			if self.bbox_corner_location=='tleft':
+				coord[0] = int(event.x)
+				coord[1] = int(event.y)
+			elif self.bbox_corner_location=='bleft':
+				coord[0] = int(event.x)
+				coord[3] = int(event.y)
+			elif self.bbox_corner_location=='tright':
+				coord[2] = int(event.x)
+				coord[1] = int(event.y)
+			elif self.bbox_corner_location=='bright':
+				coord[2] = int(event.x)
+				coord[3] = int(event.y)
+			obj.change_coord(coord)
+
+
+			print('CANVAS:',event.x,event.y)
+
+	def __canvas_unpressed(self,event):
+		self.__deselect_corners()
+		if self.bbox_corner_selected:
+			self.bbox_corner_selected = False
+			print('UNSELECTED')
+
+	def __deselect_corners(self):
+		for obj in self.bboxes:
+			obj.deselect_corners()
+
+
+	def change_image(self,path=None,im=None):
+		# Change the image in the canvas
+		# If the path of the image is provided, it will load it.
+		# In case the image per se is provided, it will condition 
+		# it and use it.
+		self.__remove_bboxes_on_canvas()
+
+		if path is not None:
+			im = self.__load_image(path)
+		elif im is not None:
+			im = self.__condition_image(im)
+
+		self.__set_new_image_on_canvas(im)
+
+	def draw_bboxes(self,bboxes):
+		# Draw the bboxes on the canvas
+		# bboxes (list): [[x_min,y_min,x_max,y_max,label]]
+		self.__remove_bboxes_on_canvas()
+		for i,bbox in enumerate(bboxes):
+			obj = Rectangle(self.canvas,bbox,i)
+			self.bboxes.append(obj)
+
+	def check_corner_selection(self):
+		if not self.bbox_corner_selected:
+			for i,obj in enumerate(self.bboxes):
+				location,coord = obj.check_corner_selection()
+				if location is not None:
+					self.bbox_corner_selected = True
+					self.bbox_corner_location = location
+					self.bbox_corner_ind = i
+					break
+
+
+	def _on_closing(self):
+		self.closed_window = True
+
+
+
+
+
 class ImageFrame:
 	# Contains the GUI correspondig to the image and bboxes vizualization
 	def __init__(self,root,shape=(480,640),main=False,name='Image'):
@@ -42,6 +310,9 @@ class ImageFrame:
 		if main: self.window = self.root
 		else: self.window = tk.Toplevel(self.root)
 
+		self.window.bind('<B1-Motion>',self.__redraw_rectangle)
+		self.window.bind('<ButtonRelease-1>',self.__stop_redraw_rectangle)
+
 		# Set the window name
 		self.window.title(name)
 
@@ -50,10 +321,8 @@ class ImageFrame:
 		self.closed_window = False
 
 		# Store the bboxes currently drawn
-		self.current_bboxes = [] # List of lists
-		self.canvas_current_bboxes = [] # Rectangle objects
-		self.canvas_current_corners_bboxes = [] # Point objects
-		
+		self.current_bboxes = [] # Rectangles
+
 		# Stores the clicked bboxes on the image
 		self.clicked_bboxes = []
 
@@ -66,6 +335,10 @@ class ImageFrame:
 		# Fix window size
 		self.window.resizable(width=False, height=False)
 
+
+		### Redrawing rectangle
+		self.rectangle_ind = None
+		self.rectangle_corner = None
 
 	def __content(self):
 		# Creates all the content in the frame
@@ -88,8 +361,35 @@ class ImageFrame:
 		self.image = self.canvas.create_image(self.shape[1]//2,self.shape[0]//2,
 			image=self.im_data)
 
-		self.canvas.bind('<Button-1>',self.__click)
-		
+		#self.canvas.tag_bind(self.image,'<B1-Motion>',self.__image_selected)
+		#self.canvas.tag_bind(self.image,'<ButtonRelease-1>',self.__image_deselected)
+
+	def __redraw_rectangle(self,event):
+		#if self.rectangle_ind is not None:
+		if True:
+			print('WINDOW:',event.x,event.y)
+
+	def __stop_redraw_rectangle(self,event):
+		if self.rectangle_ind is not None:
+			print('STOPED:',event.x,event.y)
+
+	def __image_selected(self,event):
+		# When the image is selected
+		print(event.x,event.y)
+		self.__deselect_rectangles()
+		#for rect in self.current_bboxes:
+		#	print(rect.get_coord())
+
+	def __image_deselected(self,event):
+		# 
+		print(event.x,event.y)
+		self.__deselect_rectangles()
+
+	def __deselect_rectangles(self):
+		# Set all the rectangles off from selected
+		for rect in self.current_bboxes:
+			rect.set_setected_off()
+
 	def __load_image(self,path):
 		# Loads the images 
 		im = cv2.imread(path)
@@ -114,8 +414,7 @@ class ImageFrame:
 			im = self.__condition_image(im)
 
 		self.__set_new_image_on_canvas(im)
-		self.__reset_current_bboxes()
-		self.__reset_canvas_current_bboxes()
+		self.__reset_bboxes()
 
 	def __set_new_image_on_canvas(self,im):
 		# Converst the image to a format that tkinter can handle
@@ -123,90 +422,44 @@ class ImageFrame:
 		# Initialize the image in the canvas
 		self.canvas.itemconfig(self.image,image=self.im_data)
 
-	def __reset_current_bboxes(self):
-		self.current_bboxes = []
-
-	def __reset_canvas_current_bboxes(self):
+	def __reset_bboxes(self):
 		# Removes all bboxes created on the canvas
-		for bbox,corners in zip(self.canvas_current_bboxes,self.canvas_current_corners_bboxes):
-			self.canvas.delete(bbox)
-			for corner in corners:
-				self.canvas.delete(corner)
+		for rectangle in self.current_bboxes:
+			rectangle.destroy()
+
+		self.current_bboxes = []
 
 	def draw_bboxes(self,bboxes):
 		# Draw the bboxes on the canvas
 		# bboxes (list): [[x_min,y_min,x_max,y_max,label]]
-		if bboxes!=self.current_bboxes:
-			self.__reset_canvas_current_bboxes()
-			for bbox in bboxes:
-				self.canvas_current_bboxes.append(self.canvas.create_rectangle(bbox[0],
-					bbox[1],bbox[2],bbox[3],width=3,outline='red'))
-				self.canvas_current_corners_bboxes.append(self.draw_bbox_corners(bbox))
-			self.current_bboxes = copy.copy(bboxes)
+		self.__reset_bboxes()
+		for i,bbox in enumerate(bboxes):
+			rect = Rectangle(self.canvas,bbox,i)
+			self.current_bboxes.append(rect)
 
-	def draw_bbox_corners(self,bbox):
-		# Draw the corners of a bbox
-		points = [(bbox[0],bbox[1]), # top_left (x,y)
-				  (bbox[2],bbox[1]), # top_right (x,y)
-				  (bbox[0],bbox[3]), # bottom_left (x,y)
-				  (bbox[2],bbox[3])] # bottom_right (x,y)
-		objects = []
-		for pt in points:
-			ob = self.canvas.create_oval(pt[0],pt[1],pt[0],pt[1],width=4,fill='white')
-			objects.append(ob)
+	def get_selected_rectangles(self):
+		selected = []
+		for i,obj in enumerate(self.current_bboxes):
+			if obj.selected:
+				selected.append(i)
 
-		return(objects)
+		return(selected)
 
-	def __click(self,event):
-		print('Clicked at {} {}'.format(event.x,event.y))
-		click = (event.x,event.y)
-
-		bbox_selected = False
-		for i,bbox in enumerate(self.current_bboxes):
-			is_clicked = self.__check_click_close_to_bbox(click,bbox)
-			if is_clicked:
-				bbox_selected = True
-				self.clicked_bboxes = [i]
-				break
-
-		if not bbox_selected:
-			self.clicked_bboxes = []
-
-
-
-	def __check_click_close_to_bbox(self,click,bbox):
-		# Checks if a click is close to a bbox
-		# Args:
-		#    click (tuple): Coordenates of the click. (x,y)
-		#    bbox (list): [x_min,y_min,x_max,y_max,label]
-
-		min_dist = 5
-		clicked_on = None
-		# Vertical lines
-		if click[1]>=bbox[1] and click[1]<=bbox[3]:
-			if click[0]>=(bbox[0]-min_dist) and click[0]<=(bbox[0]+min_dist):
-				# Left line
-				clicked_on = 'left'
-			elif click[0]>=(bbox[2]-min_dist) and click[0]<=(bbox[2]+min_dist):
-				# Right line
-				clicked_on = 'right'
-		#Horizontal lines
-		elif click[1]>=(bbox[1]-min_dist) and click[1]>=(bbox[1]+min_dist):
-			# Top 
-			if click[0]>=bbox[0] and click[0]<=bbox[2]:
-				clicked_on = 'top'
-		elif click[1]>=(bbox[3]-min_dist) and click[1]>=(bbox[3]+min_dist):
-			# Bottom
-			if click[0]>=bbox[0] and click[0]<=bbox[2]:
-				clicked_on = 'bottom'
-
-		if clicked_on in ['left','right','top','bottom']:
-			return(True)
-		else:
-			return(False)
+	def check_corner_selection(self):
+		if self.rectangle_corner is None:
+			for i,obj in enumerate(self.current_bboxes):
+				corner,location = obj.check_corner_selection()
+				if location is not None:
+					self.rectangle_corner = corner
+					self.rectangle_ind = i
+					break
+		#print(self.rectangle_corner)
 
 	def _on_closing(self):
 		self.closed_window = True
+
+
+
 
 
 
@@ -235,6 +488,9 @@ class LabelsFrame:
 
 		# Indicates that the previous image should be loaded
 		self.prev_im = False
+
+		# Indicate if the bboxes have changed
+		self.bboxes_changed = False
 
 		self.current_selections = []
 
@@ -279,6 +535,7 @@ class LabelsFrame:
 	def __remove_lbl(self):
 		elems = sorted(list(self.listbox.curselection()))[::-1]
 		for elem in elems:
+			self.bboxes_changed = True
 			del self.bboxes[elem]
 		self.__refresh_lbs() 
 
@@ -305,12 +562,12 @@ class LabelsFrame:
 		self.prev_im = True
 
 	def set_save_lbs_to_false(self):
+		#
 		self.save_lbs = False
 
 	def set_next_prev_im_to_false(self):
 		self.next_im = False
 		self.prev_im = False
-
 
 	def load_lbs(self,path):
 		self.listbox.delete(0,tk.END)
@@ -327,6 +584,10 @@ class LabelsFrame:
 	def reset_lbs(self):
 		self.bboxes = []
 		self.__refresh_lbs()
+
+	def set_bboxes_changed_off(self):
+		# 
+		self.bboxes_changed = False
 
 	def __load_bboxes_from_txt(self,path,ob_lbs,orig_shape=None,new_shape=None):
 		# Returns the objects found in each file as a list of lists with the form
@@ -389,6 +650,71 @@ class LabelsFrame:
 
 
 
+
+
+class SABLabelingToolMainGUI2:
+	def __init__(self):
+		# Creates root
+		self.root = tk.Tk()
+		# Creates content
+		self.__content()
+
+		# Location of the labels file
+		self.lb_path = None
+
+		# Indicates that the next image should be loaded
+		self.load_next_im = False
+		# Indicates that the previous image should be loaded
+		self.load_prev_im = False
+
+		self.closed_windows = False
+
+	def __content(self):
+		self.imFrame = ImageFrame2(self.root,main=True)
+		self.lbsFrame = LabelsFrame(self.root)
+
+	def load_data(self,im_path,lb_path=None):
+		# Loads the image and label file.
+		# In case lbs_path is not defined you must use
+		# set_out_label_path to indicate where to save 
+		# the added labels
+		#
+		# Args:
+		#     im_path (str): Path of the image to be loaded
+		#     lbs_path (str): Path of the labels file
+
+		self.imFrame.change_image(path=im_path)
+		if lb_path is not None:
+			self.lbsFrame.reset_lbs()
+			self.lb_path = lb_path
+
+			if os.path.exists(lb_path):
+				self.lbsFrame.load_lbs(lb_path)
+			else:
+				print('Label file does not exist. ',end=' ')
+				print('Using it as path for saving the labels')
+
+	def run(self):
+		# Runs the main loop needed for the GUI to work
+		#self.root.mainloop()
+		# Draws the modifications to the bboxes when removed
+		self.imFrame.draw_bboxes(self.lbsFrame.bboxes)
+		while True:
+			# Update GUI
+			self.root.update_idletasks()
+			self.root.update()
+
+			# Close all windows when any of them is closed
+			if self.imFrame.closed_window or self.lbsFrame.closed_window:
+				self.closed_windows = True
+				break
+
+			self.imFrame.check_corner_selection()
+
+
+
+
+
 class SABLabelingToolMainGUI:
 	# Creates a GUI to label objects on images. It uses txt files
 	# with the KITTI format.
@@ -445,34 +771,43 @@ class SABLabelingToolMainGUI:
 	def run(self):
 		# Runs the main loop needed for the GUI to work
 		#self.root.mainloop()
+		# Draws the modifications to the bboxes when removed
+		self.imFrame.draw_bboxes(self.lbsFrame.bboxes)
+
 		while True:
+			# Update GUI
 			self.root.update_idletasks()
 			self.root.update()
+
+			# Check if the bboxes in lbs have changed to redraw them
+			if self.lbsFrame.bboxes_changed:
+				self.lbsFrame.set_bboxes_changed_off()
+				self.imFrame.draw_bboxes(self.lbsFrame.bboxes)
 
 			# Close all windows when any of them is closed
 			if self.imFrame.closed_window or self.lbsFrame.closed_window:
 				self.closed_windows = True
 				break
 
-			# Draws the modifications to the bboxes when removed
-			self.imFrame.draw_bboxes(self.lbsFrame.bboxes)
+			# Highlight the selected bboxes
+			self.lbsFrame.set_selections(self.imFrame.get_selected_rectangles())
 
-			# 
-			self.lbsFrame.set_selections(self.imFrame.clicked_bboxes)
+			# Dynamic redrawing of rectangles
+			self.imFrame.check_corner_selection()
 
 			# Save labels when save clicked
 			if self.lbsFrame.save_lbs:
-				print('Saving')
-				bboxes = self.imFrame.current_bboxes
+				print('Saving. ', end =" ")
+				self.lbsFrame.set_save_lbs_to_false()
+				bboxes = self.lbsFrame.bboxes
 				if len(bboxes)>0:
 					self.save_bbox2file(self.lbs_path,bboxes)
-					print('File saved')
+					print('File saved.')
 				else:
-					print('File removed')
+					print('File removed.')
 					if os.path.exists(self.lbs_path):
 						os.remove(self.lbs_path)
 
-				self.lbsFrame.set_save_lbs_to_false()
 
 			# Indicates that the next image should be loaded
 			if self.lbsFrame.next_im:
@@ -535,3 +870,5 @@ class SABLabelingTool:
 				print('Bye!')
 				self.main.root.destroy()
 				break
+
+
