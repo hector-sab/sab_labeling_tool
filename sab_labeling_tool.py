@@ -627,11 +627,17 @@ class LabelsFrame:
 		self.closed_window = True
 
 class SABLabelingToolMainGUI:
-	def __init__(self):
+	def __init__(self,def_class):
 		# Creates root
 		self.root = tk.Tk()
 		# Creates content
 		self.__content()
+
+		# Default Class
+		if def_class is None:
+			self.def_class = 'person'
+		else:
+			self.def_class = def_class
 
 		# Location of the labels file
 		self.lb_path = None
@@ -645,7 +651,7 @@ class SABLabelingToolMainGUI:
 
 	def __content(self):
 		self.imFrame = ImageFrame(self.root,main=True)
-		self.lbsFrame = LabelsFrame(self.root,def_class='person')
+		self.lbsFrame = LabelsFrame(self.root,def_class=self.def_class)
 
 	def load_data(self,im_path,lb_path=None):
 		# Loads the image and label file.
