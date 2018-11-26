@@ -627,17 +627,19 @@ class LabelsFrame:
 		self.closed_window = True
 
 class SABLabelingToolMainGUI:
-	def __init__(self,def_class):
+	def __init__(self,def_class=None):
 		# Creates root
 		self.root = tk.Tk()
-		# Creates content
-		self.__content()
-
+		
 		# Default Class
 		if def_class is None:
 			self.def_class = 'person'
 		else:
 			self.def_class = def_class
+		
+		# Creates content
+		self.__content()
+
 
 		# Location of the labels file
 		self.lb_path = None
@@ -714,14 +716,6 @@ class SABLabelingToolMainGUI:
 				self.imFrame.set_bboxes_changed_to_false()
 				bboxes = self.imFrame.get_bboxes()
 				self.lbsFrame.change_bboxes(bboxes)
-				print(self.lbsFrame.bboxes)
-			"""
-			for i,bbox in enumerate(self.lbsFrame.bboxes):
-				self.lbsFrame.bboxes[i][0] = bbox[0]
-				self.lbsFrame.bboxes[i][1] = bbox[1]
-				self.lbsFrame.bboxes[i][2] = bbox[2]
-				self.lbsFrame.bboxes[i][3] = bbox[3]
-			"""
 
 			# Add label to lbsFrame
 			if self.lbsFrame.add_lb:
