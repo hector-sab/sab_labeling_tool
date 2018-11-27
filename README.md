@@ -75,14 +75,11 @@ Note that ```im_paths``` and ```lb_paths``` must match in size.
 
 - If you click the bbox in the image, it will be selected in the bboxes.
 - Remove bounding boxes.
+- Add new bboxes.
+- Save the bboxes.
 
 ## Thing that cannot be done or need to be implemented
 
-- Allow to change the bbox size from the image.
-- Remove dependency of ```OBJECT_LABELS```.
 - Allow more label files formats.
-- Add a method that allows personalized funtions to load label files.
 - Fix scrollbar in the labeling frame.
-- Allow drawing rectangles in the image frame.
-- Implement the add button to save the rectangles drew.
 - Implement the modify/rename label button.
