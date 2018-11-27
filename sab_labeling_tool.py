@@ -13,6 +13,7 @@ from PIL import Image, ImageTk
 # TODO: Issue with the storing the corners of the unregistered corner
 #       As of right now, you have to draw the rectangle from top-left to bottom-right
 #       to get it done without issues.
+# TODO: Unselect when has been selected from label frame and clicks on image does not works.
 
 class Point:
 	def __init__(self,canvas,coord):
@@ -769,13 +770,13 @@ class SABLabelingTool:
 			
 			if self.main.load_next_im:
 				i += 1
-				print('Loading next image! {}/{}'.format(i+1,len(im_paths)))
+				print('Loading next image! {}/{}'.format(i,len(im_paths)))
 				if i>len(im_paths)-1:
 					i = len(im_paths)-1
 					print('End of ims reached.')
 			if self.main.load_prev_im:
 				i -= 1;
-				print('Loading previous image! {}/{}'.format(i+1,len(im_paths)))
+				print('Loading previous image! {}/{}'.format(i,len(im_paths)))
 				if i<0:
 					i = 0
 					print('Begining of ims reached.')
