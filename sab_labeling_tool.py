@@ -7,6 +7,8 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 
+import xml.etree.ElementTree as ET
+
 
 # TODO: Allow changing the class when clicking the label.
 # Todo: Allow preset of labels from where to choose the default.
@@ -369,6 +371,47 @@ class ImageFrame:
 	def _on_closing(self):
 		self.closed_window = True
 
+def bboxes_loader_xml_imagenet(path,args=None):
+	# args (tuple): Not needed. If provided:
+	#      args[0] (tuple): Shape of the image 
+	#         from where the labels where taken.
+	#         (height,width)
+	#      args[1] (tuple): Shape of the desired 
+	#         image  where the labels will be placed.
+	#         (height,width)
+	
+	orig_shape = None
+	new_shape = None
+
+	if args is not None:
+		orig_shape = args[0]
+		new_shape = args[1]
+
+	bboxes = []
+
+	tree = ET.parse(path)
+	root = tree.getroot()
+	for obj in root.findall('object'):
+		# Read the class label
+		label = obj.find('name').text
+
+		# Read the bbox
+		bbox = obj.find('bndbox')
+		x_left = float(bbox.find('xmin').text)
+		y_top = float(bbox.find('ymin').text)
+		x_right = float(bbox.find('xmax').text)
+		y_bottom = float(bbox.find('ymax').text)
+
+		if orig_shape is not None and new_shape is not None:
+			x_left = x_left*new_shape[1]/orig_shape[1]
+			y_top = y_top*new_shape[0]/orig_shape[0]
+			x_right = x_right*new_shape[1]/orig_shape[1]
+			y_bottom = y_bottom*new_shape[0]/orig_shape[0]
+
+		bbox = [int(x_left),int(y_top),int(x_right),int(y_bottom),label]
+		bboxes.append(bbox)
+	return(bboxes)
+
 def bboxes_loader_txt_kitti(path,args=None):
 	# args (tuple): Not needed. If provided:
 	#      args[0] (tuple): Shape of the image 
@@ -427,8 +470,8 @@ def bboxes_saver_txt_kitti(path,bboxes,args=None):
 					f.write('\n')
 
 class LabelsFrame:
-	def __init__(self,root,main=False,lb_loader=None,lb_saver=None,
-		def_class=None,name='Labels'):
+	def __init__(self,root,main=False,lb_loader=None,args_loader=None,
+		lb_saver=None,args_saver=None,def_class=None,name='Labels'):
 		# Defines the root
 		self.root = root
 
@@ -444,16 +487,18 @@ class LabelsFrame:
 		self.closed_window = False
 
 		# Format of the file
+		self.args_loader = args_loader
+		self.lb_loader = lb_loader
 		if lb_loader is None:
 			self.lb_loader = bboxes_loader_txt_kitti
-		else:
-			self.lb_loader = lb_loader
+			
 
 		# Saver
+		self.args_saver = args_saver
+		self.lb_saver = lb_saver
 		if lb_saver is None:
 			self.lb_saver = bboxes_saver_txt_kitti
-		else:
-			self.lb_saver = lb_saver
+			
 
 		# Default class for new objects
 		if def_class is None:
@@ -563,8 +608,9 @@ class LabelsFrame:
 		# args (tuple): Args in a tuple if needed.
 		if lb_loader is None:
 			lb_loader = self.lb_loader
-		else:
-			lb_loader = lb_loader
+
+		if args is None:
+			args = self.args_loader
 
 		self.change_bboxes(lb_loader(path,args))
 		"""
@@ -600,8 +646,9 @@ class LabelsFrame:
 		# args (tuple): Args in a tuple if needed.
 		if lb_saver is None:
 			lb_saver = self.lb_saver
-		else:
-			lb_saver = lb_saver
+		
+		if args is None:
+			args = self.args_saver
 
 		lb_saver(path,self.bboxes,args)
 
