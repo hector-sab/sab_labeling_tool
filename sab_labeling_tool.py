@@ -675,10 +675,19 @@ class LabelsFrame:
 		self.closed_window = True
 
 class SABLabelingToolMainGUI:
-	def __init__(self,def_class=None):
+	def __init__(self,def_class=None,lb_loader_fmt='txt'):
 		# Creates root
 		self.root = tk.Tk()
 		
+		# Default format to load labels
+		if lb_loader_fmt=='txt':
+			self.lb_loader = bboxes_loader_txt_kitti
+		if lb_loader_fmt=='txt':
+			self.lb_loader = bboxes_loader_xml_imagenet
+		else:
+			self.lb_loader = None
+			print('Warning: Default label format not found. Using "txt".')
+
 		# Default Class
 		if def_class is None:
 			self.def_class = 'person'
@@ -701,7 +710,8 @@ class SABLabelingToolMainGUI:
 
 	def __content(self):
 		self.imFrame = ImageFrame(self.root,main=True)
-		self.lbsFrame = LabelsFrame(self.root,def_class=self.def_class)
+		self.lbsFrame = LabelsFrame(self.root,def_class=self.def_class,
+			lb_loader=self.lb_loader)
 
 	def load_data(self,im_path,lb_path=None):
 		# Loads the image and label file.
