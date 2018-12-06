@@ -196,8 +196,9 @@ class ImageFrame:
 		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im))
 
 		# Initialize the image in the canvas
-		self.image = self.canvas.create_image(self.shape[1]//2,self.shape[0]//2,
-			image=self.im_data)
+		#self.image = self.canvas.create_image(self.shape[1]//2,self.shape[0]//2,
+		#	image=self.im_data)
+		self.image = self.canvas.create_image(0,0,anchor=tk.NW,image=self.im_data)
 
 		self.canvas.tag_bind(self.image,'<Button-1>',self.__image_unpressed)
 
@@ -215,6 +216,7 @@ class ImageFrame:
 
 	def __set_new_image_on_canvas(self,im):
 		# Converst the image to a format that tkinter can handle
+		self.canvas.config(height=im.shape[0],width=im.shape[1])
 		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im))
 		# Initialize the image in the canvas
 		self.canvas.itemconfig(self.image,image=self.im_data)
