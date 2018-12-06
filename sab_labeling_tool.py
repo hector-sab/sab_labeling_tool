@@ -216,6 +216,7 @@ class ImageFrame:
 
 	def __set_new_image_on_canvas(self,im):
 		# Converst the image to a format that tkinter can handle
+		self.shape = (im.shape[0],im.shape[1])
 		self.canvas.config(height=im.shape[0],width=im.shape[1])
 		self.im_data = ImageTk.PhotoImage(image=Image.fromarray(im))
 		# Initialize the image in the canvas
@@ -325,6 +326,7 @@ class ImageFrame:
 		# bboxes (list): [[x_min,y_min,x_max,y_max,label]]
 		self.__remove_bboxes_on_canvas()
 		for i,bbox in enumerate(bboxes):
+			print(i,bbox)
 			obj = Rectangle(self.canvas,bbox[:4],i,clss=bbox[4])
 			self.bboxes.append(obj)
 
@@ -613,8 +615,8 @@ class LabelsFrame:
 
 		if args is None:
 			args = self.args_loader
-
-		self.change_bboxes(lb_loader(path,args))
+		bboxes = lb_loader(path,args)
+		self.change_bboxes(bboxes)
 		"""
 		self.bboxes = lb_loader(path,args)
 		self.listbox.delete(0,tk.END)
@@ -677,7 +679,8 @@ class LabelsFrame:
 		self.closed_window = True
 
 class SABLabelingToolMainGUI:
-	def __init__(self,def_class=None,lb_loader_fmt='txt'):
+	def __init__(self,def_class=None,lb_loader_fmt='txt',is_main=True):
+		self.is_main = is_main
 		# Creates root
 		self.root = tk.Tk()
 		
@@ -750,14 +753,17 @@ class SABLabelingToolMainGUI:
 		# Draws the modifications to the bboxes when removed
 		self.imFrame.draw_bboxes(self.lbsFrame.bboxes)
 		while True:
+			# Close all windows when any of them is closed
+			if self.imFrame.closed_window or self.lbsFrame.closed_window:
+				if not self.is_main:
+					self.closed_windows = True
+				else:
+					self.root.destroy()
+				break
+
 			# Update GUI
 			self.root.update_idletasks()
 			self.root.update()
-
-			# Close all windows when any of them is closed
-			if self.imFrame.closed_window or self.lbsFrame.closed_window:
-				self.closed_windows = True
-				break
 
 			# 
 			self.imFrame.check_rectangle_selection()
@@ -814,7 +820,7 @@ class SABLabelingToolMainGUI:
 
 class SABLabelingTool:
 	def __init__(self):
-		self.main = SABLabelingToolMainGUI()
+		self.main = SABLabelingToolMainGUI(is_main=False)
 
 	def run(self,im_paths,lb_paths=None):
 		i = 0
