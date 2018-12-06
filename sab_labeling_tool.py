@@ -682,7 +682,7 @@ class SABLabelingToolMainGUI:
 		# Default format to load labels
 		if lb_loader_fmt=='txt':
 			self.lb_loader = bboxes_loader_txt_kitti
-		if lb_loader_fmt=='txt':
+		if lb_loader_fmt=='xml':
 			self.lb_loader = bboxes_loader_xml_imagenet
 		else:
 			self.lb_loader = None
