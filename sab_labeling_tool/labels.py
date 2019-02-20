@@ -1,3 +1,4 @@
+import os
 import xml.etree.ElementTree as ET
 
 def bboxes_loader_xml_imagenet(path,args=None):
@@ -20,6 +21,10 @@ def bboxes_loader_xml_imagenet(path,args=None):
 	    and the data type is:
 	      [int,int,int,int,str]
 	"""
+
+	if not os.path.exists(path):
+		return(None)
+
 	orig_shape = None
 	new_shape = None
 
@@ -57,21 +62,24 @@ def bboxes_loader_txt_kitti(path,args=None):
 	Load bboxes from txt files with the kitti format.
 	
 	Args:
-	  args (tuple): Not needed. If provided:
-	    args[0] (tuple): Shape of the image 
-	       from where the labels where taken.
-	       (height,width)
-	    args[1] (tuple): Shape of the desired 
-	       image  where the labels will be placed.
-	       (height,width)
+	  - path (str): Location of the file.
+	  - args (tuple): Not needed. If provided:
+	      args[0] (tuple): Shape of the image 
+	        from where the labels where taken.
+	        (height,width)
+	      args[1] (tuple): Shape of the desired 
+	        image  where the labels will be placed.
+	        (height,width)
 	
 	Returns:
-	  bboxes (list): A list containing lists which represent
-	    individual objects. Its format is:
-	      [[x_left,y_top,x_right,y_bottom,label]]
-	    and the data type is:
-	      [int,int,int,int,str]
+	  - bboxes (list): A list containing lists which represent
+	      individual objects. Its format is:
+	        [[x_left,y_top,x_right,y_bottom,label]]
+	      and the data type is:
+	        [int,int,int,int,str]
 	"""
+	if not os.path.exists(path):
+		return(None)
 
 	orig_shape = None
 	new_shape = None
