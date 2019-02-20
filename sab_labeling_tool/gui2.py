@@ -1,5 +1,6 @@
 import os
 import cv2
+from copy import copy
 import warnings
 import numpy as np
 import tkinter as tk
@@ -9,7 +10,8 @@ from PIL import Image, ImageTk
 import labels as ut_lbs
 
 # TODO: Fix initial position on systems with multiple screens
-
+# TODO: Remember order of selection, might be useful when changing names of rectangles
+# TODO: Labels label tree object not working
 class Frame:
 	def __init__(self,root=None,main=False,name='Frame',nomain_destroy=False):
 		# Args:
@@ -126,13 +128,13 @@ class PopUp(Frame):
 		"""
 		self._on_closing()
 		
-	def _ok_keyboard(self):
+	def _ok_keyboard(self,event):
 		"""
 		Reaction when the <Return> key is pressed.
 		"""
 		self._ok()
 
-	def _cancel_keyboard(slef):
+	def _cancel_keyboard(slef,event):
 		"""
 		Reaction when the <ESC> key is pressed.
 		"""
@@ -200,6 +202,139 @@ class PopUp(Frame):
 		"""
 		self.frame.grab_release()
 		self.hide()
+
+class PopUp2(Frame):
+	"""
+	Pop Up object that allow us to modify the name of a
+	rectangle. It frame is completely destroyed each time the
+	pop up is closed.
+	"""
+	def __init__(self,root=None,main=False,frame_name='Pop Up'):
+		"""
+		Args:
+		  - root ()
+		  - main (bool): Indicates if it is the main frame.
+		  - frame_name (str): Name of the ImageFrame frame that will 
+		      appear in the top of the window.
+		"""
+		self.root = root
+		self.main = main
+		self.frame_name = frame_name
+		# Text manipulation
+		self.rect = None # Rectangle being manipulated
+
+	def create_content(self):
+		"""
+		"""
+		super().__init__(self.root,self.main,self.frame_name)
+		# Text input
+		self.entry = tk.Entry(self.frame)
+		self.entry.grid(row=0,column=0,columnspan=2)
+
+		# Ok button
+		self.btn_ok = tk.Button(self.frame,text='Ok',command=self._ok)
+		self.btn_ok.grid(row=1,column=0)
+
+		# Cancel button
+		self.btn_cancel = tk.Button(self.frame,text='Cancel',command=self._cancel)
+		self.btn_cancel.grid(row=1,column=1)
+		
+		# Set text 
+		#self.set_entry_text(self.entry_text)
+
+		# Bind reactions to keyboard actions
+		self.frame.bind('<Return>',self._ok_keyboard)
+		self.frame.bind('<Escape>',self._cancel_keyboard)
+
+	def _ok(self):
+		"""
+		Reaction when the OK button is pressed.
+		"""
+		self.rect.set_name(self.get_entry_text())
+		self._on_closing()
+
+	def _cancel(self):
+		"""
+		Reaction when the Cancel button is pressed.
+		"""
+		self._on_closing()
+		
+	def _ok_keyboard(self,event):
+		"""
+		Reaction when the <Return> key is pressed.
+		"""
+		self._ok()
+
+	def _cancel_keyboard(self,event):
+		"""
+		Reaction when the <ESC> key is pressed.
+		"""
+		self._cancel()
+
+	def set_entry_text(self,text):
+		"""
+		Sets the text in the entry widget
+		Args:
+		  - text (str): Text to be displayed.
+		"""
+		self.entry.delete(0,tk.END)
+		self.entry.insert(0,text)
+
+	def get_entry_text(self):
+		"""
+		Gets the text in the entry widget
+		"""
+		text = self.entry.get()
+		return(text)
+
+	def set_initial_position(self):
+		"""
+		Locates the frame at the center of the screen
+		"""
+		# Get frame shape
+		frame_shape = np.array([self.frame.winfo_width(),self.frame.winfo_height()])
+
+		# Get screen resolution
+		screen_shape = np.array([self.root.winfo_screenwidth(),self.root.winfo_screenheight()])
+
+		# Calculate its position
+		center = (screen_shape/2 - frame_shape/2).astype(np.int32)
+
+		# Sets its position
+		self.set_frame_location(center[0],center[1])
+
+	def pop(self,obj):
+		"""
+		Pops the pop up window.
+		Args:
+		  - obj (Rectangle):
+		"""
+		self.rect = obj
+
+		self.create_content()
+
+		# Set focus only on the pop up. Disable all other
+		# windows while the popup is open
+		self.frame.wait_visibility()
+		self.frame.grab_set()
+
+		# Set its position in the center of the screen
+		self.set_initial_position()
+
+		# Set text to the entry
+		self.set_entry_text(self.rect.get_name())
+
+		# Focus the entry
+		self.entry.focus()
+
+		# Wait until the popup is destroyed
+		self.root.wait_window(self.frame)
+
+	def _on_closing(self):
+		"""
+		"""
+		self.frame.grab_release()
+		self.frame.destroy()
 
 class Point:
 	"""
@@ -657,7 +792,10 @@ class ObjectsTracker:
 	"""
 	Class that keeps track of all objects in the canvas.
 	"""
-	def __init__(self):
+	def __init__(self,popup):
+		"""
+		"""
+		self.popup = popup
 		self.objects = []
 
 	def add_new_object(self,obj):
@@ -707,6 +845,14 @@ class ObjectsTracker:
 
 		return(bboxes)
 
+	def modify_selected_objects(self):
+		"""
+		Modify the name of the selected object
+		"""
+		objects = self.get_selected_objects()
+		for obj in objects:
+			self.popup.pop(obj)
+
 	def destroy_selected_objects(self):
 		"""
 		Destroys and deletes selected objects
@@ -731,7 +877,7 @@ class ImageFrame(Frame):
 	Frame with the canvas where the images and all the 
 	other objects will be displayed.
 	"""
-	def __init__(self,root=None,main=False,obj_tracker=None,popup=None,
+	def __init__(self,root=None,main=False,obj_tracker=None,
 		default_name='New_Object',frame_name='Image Frame'):
 		"""
 		Args:
@@ -753,7 +899,6 @@ class ImageFrame(Frame):
 
 		# External objects
 		self.obj_tracker = obj_tracker
-		self.popup = popup
 
 		# Flags for external use
 		self.FLAG_NEXT = False
@@ -904,6 +1049,11 @@ class ImageFrame(Frame):
 		"""
 		Adds the tmp_rectangle to the object tracker
 		"""
+		self.add_tmp_rectangle()
+
+	def add_tmp_rectangle(self):
+		"""
+		"""
 		if self.tmp_rectangle is not None:
 			self.obj_tracker.add_new_object(self.tmp_rectangle)
 		self.tmp_rectangle = None
@@ -912,23 +1062,15 @@ class ImageFrame(Frame):
 		"""
 		Modify the name of the selected object
 		"""
-		# TMP: popup should always be present
-		objects = self.obj_tracker.get_selected_objects()
-		print(len(objects))
-		for obj in objects:
-			print(obj.get_name())
-			self.popup.pop(obj)
+		#objects = self.obj_tracker.get_selected_objects()
+		#for obj in objects:
+		#	self.popup.pop(obj)
+		self.obj_tracker.modify_selected_objects()
 
 	def __remove(self,event):
 		"""
 		Removes objects from the canvas
 		"""
-		#objects = self.obj_tracker.get_selected_objects()
-		#for obj in objects:
-		#	obj.destroy()
-		#	obj.set_removed_on()
-
-		#self.obj_tracker.unselect_all_objects()
 		self.obj_tracker.destroy_selected_objects()
 
 	def __save(self,event):
@@ -948,13 +1090,11 @@ class ImageFrame(Frame):
 		"""
 		"""
 		self.set_next_image_on()
-		print('NEXT')
 
 	def __previous(self,event):
 		"""
 		"""
 		self.set_prev_image_on()
-		print('PREVIOUS')
 
 	def _on_closing_keyboard(self,event):
 		"""
@@ -1031,7 +1171,228 @@ class ImageFrame(Frame):
 		"""
 		self.obj_tracker.destroy_all()
 		for obj in objs:
-			self.obj_tracker.add_new_object(Rectangle(self.canvas,obj,self.default_name))
+			self.obj_tracker.add_new_object(Rectangle(self.canvas,obj,obj[-1]))
+
+class LabelObject:
+	def __init__(self,tree,obj,obj_tracker):
+		"""
+		"""
+		self.tree = tree
+		#self.obj = copy(obj)
+		self.obj = obj
+		print(id(self.obj))
+		self.obj_tracker = obj_tracker
+		self.tree_object = self.tree.insert('',tk.END,text=obj.get_name())
+		self.tree.bind('<Double-1>',self.__double_clicked)
+
+	def __double_clicked(self,event):
+		"""
+		"""
+		obj_id = self.tree.identify('item', event.x, event.y)
+		print(obj_id)
+		print(id(self.obj))
+		print(self.obj.get_name())
+		#self.edit(self.tree.selection()[0])
+		self.obj.set_selection_on()
+		self.obj_tracker.modify_selected_objects()
+
+	def get_object_id(self):
+		# Returns the object id str. E.G. 'I001'
+		return(self.tree_object.title())
+
+	def remove(self):
+		obj_id = self.tree_object.title()
+		self.tree.delete(obj_id)
+
+
+class LabelsFrame(Frame):
+	def __init__(self,root=None,main=False,obj_tracker=None,
+		multi_files=False,default_name='New_Object',frame_name='Labels Frame'):
+		"""
+		"""
+		super().__init__(root,main,frame_name)
+		
+		self.default_name = default_name
+		
+		# Tree names container
+		self.objects = []
+
+		# External Objects
+		self.obj_tracker = obj_tracker
+
+		# Flags
+		self.FLAG_SAVE = False
+		self.FLAG_NEXT = False
+		self.FLAG_PREV = False
+		self.FLAG_ADD = False # Add tmp rectangle
+		self.FLAG_REMOVE = False
+
+		self.create_content(multi_files)
+
+	def create_content(self,multiple=False):
+		"""
+		"""
+		# DisplaysCreates a list/Treeview to display all the labels
+		self.tree = ttk.Treeview(self.frame)
+		self.tree.grid(row=1,column=1,rowspan=4)
+
+		# Adds buttons
+		self.btn_add = tk.Button(self.frame,text='Add',command=self.__add)
+		self.btn_modify = tk.Button(self.frame,text='Edit',command=self.__modify)
+		self.btn_save = tk.Button(self.frame,text='Save',command=self.__save)
+		self.btn_remove = tk.Button(self.frame,text='Remove',command=self.__remove)
+
+		# Keyboard binding
+		self.frame.bind('a',self.__add_keyboard)
+		self.frame.bind('m',self.__modify_keyboard)
+		self.frame.bind('s',self.__save_keyboard)
+		self.frame.bind('x',self.__remove_keyboard)
+
+		# Configure shape
+		self.btn_add.config(height=2,width=10)
+		self.btn_remove.config(height=2,width=10)
+		self.btn_modify.config(height=2,width=10)
+		self.btn_save.config(height=2,width=10)
+
+		self.btn_add.grid(row=1,column=3)
+		self.btn_modify.grid(row=2,column=3)
+		self.btn_save.grid(row=3,column=3)
+		self.btn_remove.grid(row=4,column=3)
+
+		if multiple:
+			self.btn_next = tk.Button(self.frame,text='Next',command=self.__next)
+			self.btn_prev = tk.Button(self.frame,text='Prev',command=self.__prev)
+			self.btn_next.config(height=2,width=10)
+			self.btn_prev.config(height=2,width=10)
+			self.btn_next.grid(row=5,column=3)
+			self.btn_prev.grid(row=6,column=3)
+
+			self.frame.bind('n',self.__next_keyboard)
+			self.frame.bind('p',self.__prev_keyboard)
+
+	def __add(self):
+		"""
+		"""
+		self.set_add_bbox_on()
+
+	def __modify(self):
+		"""
+		Modify the name of the selected object
+		"""
+		self.obj_tracker.modify_selected_objects()
+
+	def __save(self):
+		"""
+		"""
+		self.set_save_image_on()
+
+	def __remove(self):
+		"""
+		"""
+		self.obj_tracker.destroy_selected_objects()
+
+	def __next(self):
+		"""
+		"""
+		self.set_next_image_on()
+
+	def __prev(self):
+		"""
+		"""
+		self.set_prev_image_on()
+
+	def __add_keyboard(self,event):
+		"""
+		"""
+		self.__add()
+
+	def __modify_keyboard(self,event):
+		"""
+		Modify the name of the selected object
+		"""
+		self.__modify()
+
+	def __save_keyboard(self,event):
+		"""
+		"""
+		self.__save()
+
+	def __remove_keyboard(self,event):
+		"""
+		"""
+		self.__remove()
+
+	def __next_keyboard(self,event):
+		"""
+		"""
+		self.__next()
+
+	def __prev_keyboard(self,event):
+		"""
+		"""
+		self.__prev()
+
+	def set_add_bbox_on(self):
+		"""
+		"""
+		self.FLAG_ADD = True
+
+	def set_add_bbox_off(self):
+		"""
+		"""
+		self.FLAG_ADD = False
+
+	def set_next_image_on(self):
+		"""
+		"""
+		self.FLAG_NEXT = True
+
+	def set_next_image_off(self):
+		"""
+		"""
+		self.FLAG_NEXT = False
+
+	def set_prev_image_on(self):
+		"""
+		"""
+		self.FLAG_PREV = True
+
+	def set_prev_image_off(self):
+		"""
+		"""
+		self.FLAG_PREV = False
+
+	def set_save_image_on(self):
+		"""
+		"""
+		self.FLAG_SAVE = True
+
+	def set_save_image_off(self):
+		"""
+		"""
+		self.FLAG_SAVE = False
+
+	def draw_names(self):
+		"""
+		Draw the name of all the objects in the tree
+		"""
+		for obj in self.obj_tracker.objects:
+			print(obj.get_name())
+			self.objects.append(LabelObject(self.tree,copy(obj),self.obj_tracker))
+
+	def remove_names(self):
+		# Removes all objects from the frame
+		for obj in self.objects:
+			# Remove all objects from treeview
+			obj.remove()
+
+			#obj_id = obj.get_object_id()
+			#if obj_id not in self.removed_objects_id:
+			#	# Make sure it hasn't been erased before
+			#	obj.remove()
+
+		self.objects = []
+
 
 class MainGUI:
 	"""
@@ -1048,6 +1409,8 @@ class MainGUI:
 		self.root = tk.Tk()
 
 		self.multi_files = multi_files
+
+		self.frame_closed = False
 
 		self.create_content()
 
@@ -1070,11 +1433,11 @@ class MainGUI:
 	def create_content(self):
 		"""
 		"""
-		self.objects = ObjectsTracker()
-		self.popup = PopUp(self.root)
-		self.im_frame = ImageFrame(self.root,main=True,obj_tracker=self.objects,
-			popup=self.popup)
-		#self.lbs_frame = LabelsFrame()
+		self.popup = PopUp2(self.root)
+		self.objects = ObjectsTracker(popup=self.popup)
+		self.im_frame = ImageFrame(self.root,main=True,obj_tracker=self.objects)
+		self.lbs_frame = LabelsFrame(self.root,obj_tracker=self.objects)
+		self.lbs_frame.hide()
 
 	def run(self,im_path,lbs_path=None):
 		"""
@@ -1092,24 +1455,39 @@ class MainGUI:
 			print('Labels saving path not defined. Using:',lbs_path)
 
 		self.im_frame.set_new_data(im,lbs)
+		#self.lbs_frame.draw_names()
 
 		while True:
-			if self.im_frame.frame_closed:
+			if self.im_frame.frame_closed or self.lbs_frame.frame_closed:
+				self.frame_closed = True
 				break
 
-			if self.multi_files and self.im_frame.FLAG_NEXT:
+			if (self.multi_files and (self.im_frame.FLAG_NEXT or
+				self.lbs_frame.FLAG_NEXT)):
+
 				self.im_frame.set_next_image_off()
+				self.lbs_frame.set_next_image_off()
 				break
 
-			if self.multi_files and self.im_frame.FLAG_PREV:
+			if (self.multi_files and (self.im_frame.FLAG_PREV or
+				self.lbs_frame.FLAG_PREV)):
+				
 				self.im_frame.set_prev_image_off()
+				self.lbs_frame.set_prev_image_off()
 				break
 
-			if self.im_frame.FLAG_SAVE:
+			if self.im_frame.FLAG_SAVE or self.lbs_frame.FLAG_SAVE:
 				print('Saving at',lbs_path)
 				objs = self.objects.get_list_of_objects()
 				self.lbs_saver(lbs_path,objs)
+
 				self.im_frame.set_save_image_off()
+				self.lbs_frame.set_save_image_off()
+
+			if self.lbs_frame.FLAG_ADD:
+				self.im_frame.add_tmp_rectangle()
+				self.lbs_frame.remove_names()
+				self.lbs_frame.draw_names()
 
 			self.root.update_idletasks()
 			self.root.update()
