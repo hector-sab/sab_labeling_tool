@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 
-import labels as ut_lbs
+from . import labels as ut_lbs
 
 # TODO: Fix initial position on systems with multiple screens
 # TODO: Remember order of selection, might be useful when changing names of rectangles
