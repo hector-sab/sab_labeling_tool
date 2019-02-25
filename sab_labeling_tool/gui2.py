@@ -488,6 +488,7 @@ class Rectangle:
 		  coord (tuple|list|np.ndarray): Two points representing the
 		    opposite corners of the rectangle. [x_min,y_min,x_max,y_max]
 		"""
+		self.lb_id = None
 		self.name = name
 		self.canvas = canvas
 		self.selected = False
@@ -1180,6 +1181,45 @@ class LabelObject:
 		self.tree = tree
 		#self.obj = copy(obj)
 		self.obj = obj
+		self.obj_tracker = obj_tracker
+		self.tree_object = self.tree.insert('',tk.END,text=obj.get_name())
+		self.tree.bind('<Double-1>',self.__double_clicked)
+		obj.lb_id = self.get_object_id()
+
+	def __double_clicked(self,event):
+		"""
+		"""
+		self.obj_tracker.unselect_all_objects()
+		obj_id = self.tree.identify('item', event.x, event.y)
+		
+		for obj in self.obj_tracker.objects:
+			if obj.lb_id==obj_id:
+				obj.set_selection_on()
+				self.obj_tracker.modify_selected_objects()
+				break
+
+	def get_object_id(self):
+		# Returns the object id str. E.G. 'I001'
+		return(self.tree_object.title())
+
+	def remove(self):
+		obj_id = self.tree_object.title()
+		self.tree.delete(obj_id)
+
+		for obj in self.obj_tracker.objects:
+			if obj.lb_id==obj_id:
+				obj.set_removed_on()
+
+class LabelObject2:
+	"""
+	Not fully working. Reference issues.
+	"""
+	def __init__(self,tree,obj,obj_tracker):
+		"""
+		"""
+		self.tree = tree
+		#self.obj = copy(obj)
+		self.obj = obj
 		print(id(self.obj))
 		self.obj_tracker = obj_tracker
 		self.tree_object = self.tree.insert('',tk.END,text=obj.get_name())
@@ -1187,6 +1227,7 @@ class LabelObject:
 
 	def __double_clicked(self,event):
 		"""
+		There's an issue that self.obj reference changes
 		"""
 		obj_id = self.tree.identify('item', event.x, event.y)
 		print(obj_id)
@@ -1378,7 +1419,8 @@ class LabelsFrame(Frame):
 		"""
 		for obj in self.obj_tracker.objects:
 			print(obj.get_name())
-			self.objects.append(LabelObject(self.tree,copy(obj),self.obj_tracker))
+			self.objects.append(LabelObject(self.tree,obj,self.obj_tracker))
+			#self.objects.append(LabelObject(self.tree,copy(obj),self.obj_tracker))
 
 	def remove_names(self):
 		# Removes all objects from the frame
@@ -1437,7 +1479,7 @@ class MainGUI:
 		self.objects = ObjectsTracker(popup=self.popup)
 		self.im_frame = ImageFrame(self.root,main=True,obj_tracker=self.objects)
 		self.lbs_frame = LabelsFrame(self.root,obj_tracker=self.objects)
-		self.lbs_frame.hide()
+		#self.lbs_frame.hide()
 
 	def run(self,im_path,lbs_path=None):
 		"""
@@ -1455,7 +1497,7 @@ class MainGUI:
 			print('Labels saving path not defined. Using:',lbs_path)
 
 		self.im_frame.set_new_data(im,lbs)
-		#self.lbs_frame.draw_names()
+		self.lbs_frame.draw_names()
 
 		while True:
 			if self.im_frame.frame_closed or self.lbs_frame.frame_closed:
@@ -1484,7 +1526,7 @@ class MainGUI:
 				self.im_frame.set_save_image_off()
 				self.lbs_frame.set_save_image_off()
 
-			if self.lbs_frame.FLAG_ADD:
+			if False and self.lbs_frame.FLAG_ADD:
 				self.im_frame.add_tmp_rectangle()
 				self.lbs_frame.remove_names()
 				self.lbs_frame.draw_names()
@@ -1493,9 +1535,24 @@ class MainGUI:
 			self.root.update()
 
 
+class SABLabelingTool:
+	def __init__(self,lbs_saver='txt',lbs_loader='txt'):
+		self.main = MainGUI(lbs_saver,lbs_loader,True)
+
+	def run(self,im_paths,lb_paths):
+		"""
+		"""
+		for im_path,lb_path in zip(im_paths,lb_paths):
+			print(im_path)
+			self.main.run(im_path,lb_path)
+			if self.main.frame_closed:
+				break
+
 
 if __name__=='__main__':
 	im_path = '../dog.jpg'
 	lbs_path = '../tst_lbl001.txt'
-	gui = MainGUI()
-	gui.run(im_path,lbs_path)
+	#gui = MainGUI()
+	#gui.run(im_path,lbs_path)
+	gui = SABLabelingTool()
+	gui.run([im_path,im_path],[lbs_path,lbs_path])
