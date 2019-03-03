@@ -1144,6 +1144,11 @@ class ImageFrame(Frame):
 		"""
 		self.set_image_on_canvas(im)
 		self.original_objs = objs
+
+		self.obj_tracker.destroy_all()
+		if self.tmp_rectangle is not None:
+			self.tmp_rectangle.destroy()
+			self.tmp_rectangle = None
 		if objs is not None:
 			self.draw_new_objects(objs)
 
@@ -1472,14 +1477,18 @@ class MainGUI:
 			warnings.warn('Loader not found. Using txt insted')
 			self.lbs_loader = ut_lbs.bboxes_loader_txt_kitti
 
+		# Flags
+		self.FLAG_NEXT = False
+		self.FLAG_PREV = False
+
 	def create_content(self):
 		"""
 		"""
 		self.popup = PopUp2(self.root)
 		self.objects = ObjectsTracker(popup=self.popup)
-		self.im_frame = ImageFrame(self.root,main=True,obj_tracker=self.objects)
-		self.lbs_frame = LabelsFrame(self.root,obj_tracker=self.objects)
-		#self.lbs_frame.hide()
+		self.im_frame = ImageFrame(self.root,main=True,obj_tracker=self.objects,default_name='person')
+		self.lbs_frame = LabelsFrame(self.root,obj_tracker=self.objects,default_name='person')
+		self.lbs_frame.hide()
 
 	def run(self,im_path,lbs_path=None):
 		"""
@@ -1497,7 +1506,7 @@ class MainGUI:
 			print('Labels saving path not defined. Using:',lbs_path)
 
 		self.im_frame.set_new_data(im,lbs)
-		self.lbs_frame.draw_names()
+		#self.lbs_frame.draw_names()
 
 		while True:
 			if self.im_frame.frame_closed or self.lbs_frame.frame_closed:
@@ -1506,14 +1515,14 @@ class MainGUI:
 
 			if (self.multi_files and (self.im_frame.FLAG_NEXT or
 				self.lbs_frame.FLAG_NEXT)):
-
+				self.FLAG_NEXT = True
 				self.im_frame.set_next_image_off()
 				self.lbs_frame.set_next_image_off()
 				break
 
 			if (self.multi_files and (self.im_frame.FLAG_PREV or
 				self.lbs_frame.FLAG_PREV)):
-				
+				self.FLAG_PREV = True
 				self.im_frame.set_prev_image_off()
 				self.lbs_frame.set_prev_image_off()
 				break
@@ -1521,8 +1530,13 @@ class MainGUI:
 			if self.im_frame.FLAG_SAVE or self.lbs_frame.FLAG_SAVE:
 				print('Saving at',lbs_path)
 				objs = self.objects.get_list_of_objects()
-				self.lbs_saver(lbs_path,objs)
+				if len(objs)>0:
+					self.lbs_saver(lbs_path,objs)
 
+				else:
+					if os.path.exists(lbs_path):
+						os.remove(lbs_path)
+						print('File Removed')
 				self.im_frame.set_save_image_off()
 				self.lbs_frame.set_save_image_off()
 
@@ -1542,11 +1556,28 @@ class SABLabelingTool:
 	def run(self,im_paths,lb_paths):
 		"""
 		"""
-		for im_path,lb_path in zip(im_paths,lb_paths):
-			print(im_path)
-			self.main.run(im_path,lb_path)
+		i = 0
+		total_it = len(im_paths)
+		while True:
+			print(im_paths[i])
+			self.main.run(im_paths[i],lb_paths[i])
+
 			if self.main.frame_closed:
 				break
+
+			if self.main.FLAG_NEXT:
+				self.main.FLAG_NEXT = False
+				i += 1
+				if i>(total_it-1):
+					i = total_it-1
+					print('End reached')
+
+			if self.main.FLAG_PREV:
+				self.main.FLAG_PREV = False
+				i -= 1
+				if i<0:
+					i = 0
+					print('Init reached')
 
 
 if __name__=='__main__':
